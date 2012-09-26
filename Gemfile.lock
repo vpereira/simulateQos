@@ -1,0 +1,15 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    discrete_event (1.0.0)
+      pqueue (~> 1.0.0)
+    pqueue (1.0.0)
+    vose (0.2.1)
+
+PLATFORMS
+  java
+  ruby
+
+DEPENDENCIES
+  discrete_event
+  vose
