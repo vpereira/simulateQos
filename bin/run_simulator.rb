@@ -4,5 +4,5 @@ require_relative '../lib/simulate_qos'
 sim = SimulateQOS.new(0.5,1.0)
 sim.start
 sim.run do
-  throw :stop if sim.packets_sent >= 1000
+  throw :stop if sim.packets_sent >= 10000
 end
