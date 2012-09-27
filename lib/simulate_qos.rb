@@ -14,8 +14,11 @@ class SimulateQOS < DiscreteEvent::Simulation
   #
   def initialize(arrival_rate, service_rate)
     super()
+    #at begining we have the same change to get TCP/UDP packets
     @protocol_dice = ProtocolProbability.new [0.5,0.5]
-    @priority_dice = PriorityProbability.new [0.33,0.33,0.33]
+    #We are assuming that in a network where QoS is configured
+    #we have more normal traffic. some really special and low traffic 
+    @priority_dice = PriorityProbability.new [0.10,0.70,0.20]
     @queues = {:low=>[],:normal=>[],:high=>[]}
     @packets_sent = 0
     @arrival_rate = arrival_rate
@@ -48,7 +51,8 @@ class SimulateQOS < DiscreteEvent::Simulation
       q << Packet.new(proto, prio)
       #TODO
       #it should serve all three queues
-      serve_queue(q) if q.size == 1
+      rate = calculate_service_rate(prio)
+      serve_queue(q,rate) if q.size == 1
       #we will simulate the TCP RED or any other "slow down algorithm"
       #TODO
       #be dynamic
@@ -91,13 +95,19 @@ class SimulateQOS < DiscreteEvent::Simulation
     end
   end
 
-  def serve_queue(queue)
+  def calculate_service_rate(queue)
+    #0,1,2
+    #the time should get smaller if the queue is higher
+    @service_rate / ((queue + 1) ** 2)
+  end
+
+  def serve_queue(queue, rate)
     #queue.first.service_begin = now
-    after rand_exp(service_rate) do
+    after rand_exp(rate) do
       #queue.first.service_end now
       save_queue_to_csv(queue)
       @packets_sent += 1
-      serve_queue(queue) unless queue.empty?
+      serve_queue(queue,rate) unless queue.empty?
     end
   end
   def start
