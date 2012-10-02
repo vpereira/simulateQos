@@ -1,13 +1,13 @@
 require "bundler/setup"
 require 'csv'
 require "discrete_event"
-require "vose"
+require_relative "simulate_qos/probability"
 require_relative "simulate_qos/packet"
 
 
 class SimulateQOS < DiscreteEvent::Simulation
 
-  attr_reader :arrival_rate, :service_rate, :system, :packets_sent, :queues
+  attr_reader :arrival_rate, :service_rate, :system, :sent_packets, :queues, :enqueued_packets
 
   #the arrival rate = rate that the packets are arriving
   #the processing rate = rate that the packets are being processed
@@ -20,7 +20,7 @@ class SimulateQOS < DiscreteEvent::Simulation
     #we have more normal traffic. some really special and low traffic 
     @priority_dice = PriorityProbability.new [0.10,0.70,0.20]
     @queues = {:low=>[],:normal=>[],:high=>[]}
-    @packets_sent = 0
+    @sent_packets = []
     @arrival_rate = arrival_rate
     @service_rate = service_rate
     @csv = open_csv('results.csv')
@@ -48,7 +48,7 @@ class SimulateQOS < DiscreteEvent::Simulation
       proto = @protocol_dice.next
       prio = @priority_dice.next
       q = @queues[get_prio(prio)]
-      q << Packet.new(proto, prio)
+      q << Packet.new(proto, prio,q.size)
       #TODO
       #it should serve all three queues
       rate = calculate_service_rate(prio)
@@ -64,7 +64,7 @@ class SimulateQOS < DiscreteEvent::Simulation
         when 100..999
           ProtocolProbability.new [0.2,0.8]
         when 1000...100000
-          ProtocolProbability.new [0.1,0.8]
+          ProtocolProbability.new [0.1,0.9]
         else
           @protocol_dice
       end
@@ -73,7 +73,7 @@ class SimulateQOS < DiscreteEvent::Simulation
   end
 
   def queue_length(prio)
-    if @queues[get_prio(prio)].empty? 
+    if @queues[get_prio(prio)].empty?
       0
     else
       @queues[get_prio(prio)].length - 1
@@ -102,31 +102,16 @@ class SimulateQOS < DiscreteEvent::Simulation
   end
 
   def serve_queue(queue, rate)
-    #queue.first.service_begin = now
+    queue.first.service_begin = now
     after rand_exp(rate) do
-      #queue.first.service_end now
+      queue.first.service_end = now
       save_queue_to_csv(queue)
-      @packets_sent += 1
+      sent_packets << queue.shift
       serve_queue(queue,rate) unless queue.empty?
     end
   end
   def start
     new_packet
   end
-end
-
-class Probability
-  def initialize(probs = [0.5,0.5])
-    @vose = Vose::AliasMethod.new probs
-  end
-  def next
-    @vose.next
-  end
-end
-
-class ProtocolProbability < Probability
-end
-
-class PriorityProbability < Probability
 end
 
